@@ -39,13 +39,10 @@ namespace PrisonersRiddle {
 
     // 0..total-1
     inline Grid grid_generate_random(size_type width, size_type height, std::mt19937 &gen) {
-        Grid g(width, height);
-        size_type total = g.total();
-        std::vector<index_t> vals(total);
-        std::iota(vals.begin(), vals.end(), 0u);
-        std::shuffle(vals.begin(), vals.end(), gen);
-        std::copy(vals.begin(), vals.end(), g.data.begin());
-        return g;
+        Grid grid(width, height);
+        std::iota(grid.data.begin(), grid.data.end(), 0u);
+        std::shuffle(grid.data.begin(), grid.data.end(), gen);
+        return grid;
     }
     inline Grid grid_generate_random(size_type width, size_type height) {
         static thread_local std::random_device rd;
@@ -94,9 +91,6 @@ namespace PrisonersRiddle {
         std::vector<char> visited(total, 0);
         index_t idx = prisoner_number;
         for(size_type step = 0; step < max_steps; ++step) {
-            /*if(idx >= static_cast<index_t>(total)) {
-                idx = idx % static_cast<index_t>(total);
-            }*/
             if(grid.at_flat(idx) == prisoner_number) { // Заключенный нашел свой номер
                 return true;
             }

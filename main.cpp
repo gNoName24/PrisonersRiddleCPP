@@ -5,14 +5,47 @@
 #include <chrono>
 PrisonersRiddle::Grid grid;
 
-int main(int argc, char **argv) {
-    int total_repetitions = 734;
+thread_local std::random_device rd;
+thread_local std::mt19937 gen(rd());
 
-    int total_repetitions_success = 0;
-    for(int i = 0; i < total_repetitions; i++) {
+int main(int argc, char **argv) {
+    int grid_width = 10, grid_heigth = 10;
+    int repetitions_total = 100;
+    int repetitions_sleep_milliseconds = 5;
+    bool grid_render = true;
+
+    std::cout << "Введите ширину поля: ";
+    std::cin >> grid_width;
+
+    std::cout << "Введите высота поля: ";
+    std::cin >> grid_heigth;
+
+    std::cout << "Введите общее число повторений: ";
+    std::cin >> repetitions_total;
+
+    std::cout << "Введите задержку между повторениями в миллисекуднах: ";
+    std::cin >> repetitions_sleep_milliseconds;
+
+    std::cout << "Рендерить ли поля?: ";
+    std::cin >> grid_render;
+
+    typedef std::chrono::steady_clock clock;
+    clock::time_point start = clock::now();
+    std::chrono::duration<double> elapsed;
+
+    int repetitions_success = 0;
+    for(int i = 0; i < repetitions_total; i++) {
         system("clear");
-        grid = PrisonersRiddle::grid_generate_random(10, 10);
-        PrisonersRiddle::grid_render(grid);
+
+        clock::time_point now = clock::now();
+        elapsed = now - start;
+
+        std::cout << "Прошло " << elapsed.count() << " секунд\n\n";
+
+        grid = PrisonersRiddle::grid_generate_random(grid_width, grid_heigth, gen);
+        if(grid_render) {
+            PrisonersRiddle::grid_render(grid);
+        }
 
         int founds = 0;
         PrisonersRiddle::Grid grid_founds(grid.width, grid.height);
@@ -25,22 +58,26 @@ int main(int argc, char **argv) {
         }
 
         std::cout << std::endl;
-        PrisonersRiddle::grid_render(grid_founds);
+        if(grid_render) {
+            PrisonersRiddle::grid_render(grid_founds);
+        }
 
         std::cout << "Из " << grid.total() << " заключенных, " << founds << " нашли свой номер" << std::endl;
 
         if(founds == grid.total()) {
-            total_repetitions_success++;
+            repetitions_success++;
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(0));
+        std::this_thread::sleep_for(std::chrono::milliseconds(repetitions_sleep_milliseconds));
     }
 
     system("clear");
-    std::cout << "Из " << total_repetitions << " повторений, " << total_repetitions_success << " полностью нашли свой номер" << std::endl;
+    std::cout << "Из " << repetitions_total << " повторений, " << repetitions_success << " полностью нашли свой номер" << std::endl;
 
-    std::cout << total_repetitions_success << " / " << total_repetitions << " = " <<
-        (static_cast<double>(total_repetitions_success) / total_repetitions * 100.0)
+    std::cout << repetitions_success << " / " << repetitions_total << " = " <<
+        (static_cast<double>(repetitions_success) / repetitions_total * 100.0)
         << "%" << std::endl;
+
+    std::cout << "Время выполнения: " << elapsed.count() << " секунд";
 
     return 0;
 }
