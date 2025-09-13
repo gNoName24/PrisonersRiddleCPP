@@ -1,33 +1,46 @@
 #include "PRCPP.hpp"
 
-uint16_t sizeX = 10;
-uint16_t sizeY = 10;
-uint16_t size = sizeX * sizeY;
-PrisonersRiddle::Array array = PrisonersRiddle::array_generate(sizeX, sizeY);
-std::vector<PrisonersRiddle::Prisoner> prisoners(size);
+#include <stdlib.h>
+#include <thread>
+#include <chrono>
+PrisonersRiddle::Grid grid;
 
 int main(int argc, char **argv) {
-    //PrisonersRiddle::render_array(array);
+    int total_repetitions = 734;
 
-    for(int c = 0; c < 10; c++) {
-        std::cout << std::endl << "Попытка " << (c + 1) << std::endl;
-        PrisonersRiddle::Array array = PrisonersRiddle::array_generate(sizeX, sizeY);
+    int total_repetitions_success = 0;
+    for(int i = 0; i < total_repetitions; i++) {
+        system("clear");
+        grid = PrisonersRiddle::grid_generate_random(10, 10);
+        PrisonersRiddle::grid_render(grid);
+
         int founds = 0;
-        for(int i = 0; i < size; i++) {
-            prisoners[i].number = i;
-            PrisonersRiddle::step(array, prisoners[i]);
-            if(prisoners[i].found) {
+        PrisonersRiddle::Grid grid_founds(grid.width, grid.height);
+        for(int pi = 0; pi < grid.total(); pi++) {
+            grid_founds.set_xy(pi % grid.width, pi / grid.width, 0);
+            if(PrisonersRiddle::grid_prisonerfind(grid, pi, grid.total() / 2)) {
+                grid_founds.set_xy(pi % grid.width, pi / grid.width, 1);
                 founds++;
             }
         }
 
-        std::cout << "Из всех " << size << " заключенных, только " << founds << " нашли свой номер, используя цикл" << std::endl;
-        if(founds == size) {
-            std::cout << "Молодцы, всех отпускаем" << std::endl;
-        } else {
-            std::cout << (size - founds) << " не нашли свой номер, и из-за них все пойдут на смертную казнь" << std::endl;
+        std::cout << std::endl;
+        PrisonersRiddle::grid_render(grid_founds);
+
+        std::cout << "Из " << grid.total() << " заключенных, " << founds << " нашли свой номер" << std::endl;
+
+        if(founds == grid.total()) {
+            total_repetitions_success++;
         }
+        std::this_thread::sleep_for(std::chrono::milliseconds(0));
     }
+
+    system("clear");
+    std::cout << "Из " << total_repetitions << " повторений, " << total_repetitions_success << " полностью нашли свой номер" << std::endl;
+
+    std::cout << total_repetitions_success << " / " << total_repetitions << " = " <<
+        (static_cast<double>(total_repetitions_success) / total_repetitions * 100.0)
+        << "%" << std::endl;
 
     return 0;
 }

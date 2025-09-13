@@ -5,109 +5,107 @@
 #include <random>
 #include <string>
 #include <algorithm>
-
 #include <iostream>
+#include <iomanip>
+#include <sstream>
+#include <numeric>
 
 namespace PrisonersRiddle {
-    inline std::random_device rd;
-    inline std::mt19937 gen(rd());
+    using index_t = uint32_t;
+    using size_type = std::size_t;
 
-    using ArrayInt = uint16_t;
-    using Array = std::vector<std::vector<ArrayInt>>;
+    struct Grid {
+        size_type width{};
+        size_type height{};
+        std::vector<index_t> data;
 
-    Array array_generate(int sizeX, int sizeY) {
-        int total = sizeX * sizeY;
+        Grid() = default;
+        Grid(size_type w, size_type h) : width(w), height(h), data(w * h) {}
 
-        std::vector<ArrayInt> values(total);
-        for (int i = 0; i < total; i++) values[i] = i;
+        size_type total() const noexcept { return width * height; }
+        bool empty() const noexcept { return data.empty(); }
 
-        std::shuffle(values.begin(), values.end(), gen);
-
-        Array result(sizeX, std::vector<ArrayInt>(sizeY));
-        int k = 0;
-        for (int x = 0; x < sizeX; x++) {
-            for (int y = 0; y < sizeY; y++) {
-                result[x][y] = values[k++];
-            }
+        index_t at_flat(index_t idx) const noexcept {
+            return data[idx];
         }
-        return result;
-    }
-
-    void render_array(Array& array) {
-        ArrayInt sizeX = array.size();
-        ArrayInt sizeY = array[0].size();
-
-        ArrayInt min = 0;
-        ArrayInt max = sizeX * sizeY - 1;
-
-        ArrayInt max_size = std::to_string(max).size(); // Длина max в плане символов
-
-        std::string strf((sizeX * max_size) + sizeX + 1, '-');
-        std::cout << strf << std::endl;
-        for(int y = 0; y < sizeY; y++) {
-            std::string str((sizeX * max_size) + sizeX, ' ');
-            for(int x = 0; x < sizeX; x++) {
-                str[x * (max_size + 1)] = '|';
-                ArrayInt array_value = array[x][y] + 1;
-                for(int i = 0; i < std::to_string(array_value).size(); i++) {
-                    str[(x * (max_size + 1)) + i + 1] = std::to_string(array_value)[i];
-                }
-            }
-            std::cout << str << "|" << std::endl;
-            std::cout << strf << std::endl;
+        index_t at_xy(size_type x, size_type y) const noexcept {
+            return data[y * width + x];
         }
-    }
 
-    struct Prisoner {
-        ArrayInt number;
-        bool found = false;
+        void set_xy(size_type x, size_type y, index_t v) noexcept {
+            data[y * width + x] = v;
+        }
     };
 
-    void step_array(Array& array, Prisoner& prisoner, bool start, int step_index, int& step_count) {
-        ArrayInt sizeX = array.size();
-        ArrayInt sizeY = array[0].size();
-        ArrayInt min = 0;
-        ArrayInt max = sizeX * sizeY - 1;
-        step_count++;
-
-        if(step_count >= 50) {
-            return;
-        }
-
-        if(step_index < 0) return;
-        if(step_index > max) {
-            if(step_index - 1 >= 0 && step_index - 1 <= max) {
-                step_index = step_index - 1;         // 1-based -> 0-based
-            } else {
-                step_index = step_index % (max + 1); // fallback: wrap
-            }
-        }
-
-        ArrayInt x = step_index / sizeY; // x = index / cols
-        ArrayInt y = step_index % sizeY; // y = index % cols
-
-        ArrayInt next = array[x][y];
-        if(next == prisoner.number) {
-            prisoner.found = true;
-            return;
-        }
-        step_array(array, prisoner, false, next, step_count);
+    // 0..total-1
+    inline Grid grid_generate_random(size_type width, size_type height, std::mt19937 &gen) {
+        Grid g(width, height);
+        size_type total = g.total();
+        std::vector<index_t> vals(total);
+        std::iota(vals.begin(), vals.end(), 0u);
+        std::shuffle(vals.begin(), vals.end(), gen);
+        std::copy(vals.begin(), vals.end(), g.data.begin());
+        return g;
+    }
+    inline Grid grid_generate_random(size_type width, size_type height) {
+        static thread_local std::random_device rd;
+        static thread_local std::mt19937 gen(rd());
+        return grid_generate_random(width, height, gen);
     }
 
-    void step(Array& array, Prisoner& prisoner) {
-        ArrayInt sizeX = array.size();
-        ArrayInt sizeY = array[0].size();
-        ArrayInt min = 0;
-        ArrayInt max = sizeX * sizeY - 1;
-
-        //std::cout << "Ход заключенного " << prisoner.number << " | ";
-
-        int step_count = 0;
-        step_array(array, prisoner, true, prisoner.number, step_count);
-
-        if(!prisoner.found) {
-            //std::cout << "не ";
+    inline void grid_render(const Grid& grid) {
+        if(grid.empty()) {
+            std::cout << "Grid пустой" << std::endl;
+            return;
         }
-        //std::cout << "нашлось за " << step_count << " ходов" << std::endl;
+
+        size_type total = grid.total();
+        index_t max_value = static_cast<index_t>(total > 0 ? total - 1 : 0) + 1;
+        size_type max_width = std::to_string(max_value).size();
+
+        std::string line;
+        line.reserve((max_width + 1) * grid.width + 1);
+        for (size_type i = 0; i < grid.width; ++i) {
+            line += '+'; line += std::string(max_width, '-');
+        }
+        line += '+';
+        std::cout << line << '\n';
+
+        for(size_type y = 0; y < grid.height; ++y) {
+            for(size_type x = 0; x < grid.width; ++x) {
+                index_t v = grid.at_xy(x, y) + 1;
+                std::cout << '|' << std::setw(static_cast<int>(max_width)) << v;
+            }
+            std::cout << '|' << '\n' << line << '\n';
+        }
+    }
+
+    inline bool grid_prisonerfind(const Grid &grid, index_t prisoner_number, size_type max_steps) {
+        if(grid.empty()) {
+            std::cout << "Grid пустой" << std::endl;
+            return false;
+        }
+        const size_type total = grid.total();
+        if(static_cast<size_type>(prisoner_number) >= total) {
+            std::cout << "Число заключенного больше чем количество ячеек в grid" << std::endl;
+            return false;
+        }
+
+        std::vector<char> visited(total, 0);
+        index_t idx = prisoner_number;
+        for(size_type step = 0; step < max_steps; ++step) {
+            /*if(idx >= static_cast<index_t>(total)) {
+                idx = idx % static_cast<index_t>(total);
+            }*/
+            if(grid.at_flat(idx) == prisoner_number) { // Заключенный нашел свой номер
+                return true;
+            }
+            if(visited[idx]) { // Заключенный не нашел свой номер
+                return false;
+            }
+            visited[idx] = 1;
+            idx = grid.at_flat(idx);
+        }
+        return false;
     }
 };
